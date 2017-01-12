@@ -20,7 +20,6 @@ const {getSetting} = require('../settings')
 const settings = require('../constants/settings')
 const contextMenus = require('../contextMenus')
 const windowStore = require('../stores/windowStore')
-const searchProviders = require('../data/searchProviders')
 const UrlUtil = require('../lib/urlutil')
 
 const EventUtil = require('../lib/eventUtil')
@@ -38,8 +37,6 @@ class UrlBar extends ImmutableComponent {
     this.onChange = this.onChange.bind(this)
     this.onClick = this.onClick.bind(this)
     this.onContextMenu = this.onContextMenu.bind(this)
-    this.activateSearchEngine = false
-    this.searchSelectEntry = null
     this.keyPressed = false
     this.showAutocompleteResult = debounce(() => {
       if (!this.urlInput || this.keyPressed || this.locationValue.length === 0) {
@@ -68,6 +65,14 @@ class UrlBar extends ImmutableComponent {
 
   isFocused () {
     return this.props.urlbar.get('focused')
+  }
+
+  get activateSearchEngine () {
+    return this.props.urlbar.getIn(['searchDetail', 'activateSearchEngine'])
+  }
+
+  get searchSelectEntry () {
+    return this.props.urlbar.get('searchDetail')
   }
 
   // restores the url bar to the current location
@@ -279,27 +284,8 @@ class UrlBar extends ImmutableComponent {
     }
   }
 
-  detectSearchEngine (input) {
-    let location = typeof input === 'string' ? input : this.props.urlbar.get('location')
-    if (typeof location === 'string' && location.length !== 0) {
-      const isLocationUrl = isUrl(location)
-      if (!isLocationUrl &&
-        !(this.searchSelectEntry && location.startsWith(this.searchSelectEntry.shortcut + ' '))) {
-        let entries = searchProviders.providers
-        entries.forEach((entry) => {
-          if (location.startsWith(entry.shortcut + ' ')) {
-            this.activateSearchEngine = true
-            this.searchSelectEntry = entry
-            return false
-          }
-        })
-      }
-    }
-  }
-
   clearSearchEngine () {
-    this.activateSearchEngine = false
-    this.searchSelectEntry = null
+    windowActions.searchSuggestionsCleared()
   }
 
   get suggestionLocation () {
@@ -317,7 +303,6 @@ class UrlBar extends ImmutableComponent {
     const oldSearchSelectEntry = this.searchSelectEntry
 
     this.clearSearchEngine()
-    this.detectSearchEngine(e.target.value)
 
     if (this.suggestionLocation) {
       windowActions.setUrlBarSuggestions(undefined, null)
@@ -347,7 +332,6 @@ class UrlBar extends ImmutableComponent {
       windowActions.setNavBarUserInput(e.target.value)
     }
     this.clearSearchEngine()
-    this.detectSearchEngine(e.target.value)
     this.keyPressed = false
 
     if ((e.target.value !== undefined) && e.target.value.length === 0) {
@@ -371,7 +355,6 @@ class UrlBar extends ImmutableComponent {
     this.select()
     windowActions.setUrlBarFocused(true)
     windowActions.setUrlBarSelected(true)
-    this.detectSearchEngine()
   }
 
   componentWillMount () {
